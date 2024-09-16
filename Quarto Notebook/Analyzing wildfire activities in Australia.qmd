@@ -1,0 +1,235 @@
+---
+title: "Analyzing Wildfire Activities in Australia"
+author: "Aman Bhattarai"
+format: 
+  pdf:
+    toc: true
+    number-sections: true
+    colorlinks: true
+execute:
+  echo: true
+  warning: false
+---
+
+# Executive Summary
+
+This report presents an in-depth analysis of historical wildfire data in Australia, aiming to uncover patterns and trends in fire activities across different regions. Using various data visualization techniques, we explore the temporal and spatial distribution, their intensity, and associated factors.
+
+# Introduction
+
+Wildfires are a significant environmental concern in Australia, with-reaching ecological, economic, and social impacts. This study utilizes a comprehensive dataset of fire activities from 2005 onwards to provide insights into the nature and distribution of these events across the continent.
+
+# Methodology
+
+## Data Source
+
+The analysis is based on the Historical Wildfires dataset, which contains detailed information on fire activities in Australia. The dataset includes variables such as estimated fire area, fire brightness, radiative power, and confidence levels for each fire incident.
+
+## Analytical Approach
+
+Our analysis employs a combination of statistical methods and data visualization techniques to explore various aspects of wildfire activities. We use Python and its data science libraries (Pandas, Matplotlib, Seaborn, and Folium) for data manipulation and visualization.
+
+# Project Setup
+
+```{python}
+#| label: setup
+#| warning: false
+
+# importing required libraries
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import folium
+import datetime as dt
+
+%matplotlib inline
+```
+
+
+# Data Loading and Preprocessing
+
+```{python}
+#| label: import-data
+
+# Load the dataset
+df = pd.read_csv('Historical_Wildfires.csv')
+
+# Data Preprocessing
+# Convert 'Date' to datetime and extract 'Year' and 'Month'
+df['Year'] = pd.to_datetime(df['Date']).dt.year
+df['Month'] = pd.to_datetime(df['Date']).dt.month
+
+print("\nData types:")
+print(df.dtypes)
+```
+
+# Analysis and Findings
+
+## Temporal Trends in Fire Activity
+
+### Annual Trends in Estimated Fire Area
+
+```{python}
+#| label: annual-fire-area-trends
+
+df_new = df.groupby('Year')['Estimated_fire_area'].mean()
+
+plt.figure(figsize=(12, 6))
+df_new.plot(x=df_new.index, y=df_new.values)
+plt.xlabel('Year')
+plt.ylabel('Average Estimated Fire Area (km²)')
+plt.title('Estimated Fire Area over Time')
+plt.show()
+```
+
+**Observation:** A notable spike in fire activity is observed between 2010 and 2012, corresponding to significant fire events such as the Tasmania Fires of January 2011 and the Queensland Fires of 2011-2012.  
+
+### Monthly Distribution of Fire Activity
+
+```{python}
+#| label: monthly-fire-area-trends
+
+df_new = df.groupby(['Year','Month'])['Estimated_fire_area'].mean()
+
+plt.figure(figsize=(12, 6))
+df_new.plot(x=df_new.index, y=df_new.values)
+plt.xlabel('Year, Month')
+plt.ylabel('Average Estimated Fire Area (km²)')
+plt.title('Estimated Fire Area over Time')
+plt.show()
+```
+
+**Observation:** This heatmap reveals seasonal patterns in fire activity, with peak periods typically occurring in the latter months of each year.
+
+
+## Regional Analysis Brightness Across Regions
+
+```{python}
+#| label: regional-fire-brightness
+
+plt.figure(figsize=(12, 6))
+sns.barplot(data=df, x='Region', y='Mean_estimated_fire_brightness')
+plt.xlabel('Regions')
+plt.ylabel('Mean Estimated Fire Brightness (Kelvin)')
+plt.title('Distribution of Mean Estimated Fire Brightness across Regions')
+plt.show()
+```
+
+**Observation:** All regions show mean estimated fire brightness exceeding 300K, indicating significant fire intensity across Australia.
+
+
+## Regional Distribution of Fire Incidents
+
+```{python}
+#| label: regional-fire-distribution
+
+region_counts = df.groupby('Region')['Count'].sum()
+
+plt.figure(figsize=(10, 6))
+plt.pie(region_counts, labels=region_counts.index, startangle=140)
+plt.title('Percentage of Pixels for Presumed Vegetation Fires by Region')
+plt.axis('equal')
+
+plt.legend(
+    loc='best', 
+    labels=[f'{i}: {round(k / region_counts.sum() * 100, 2)}%' 
+            for i, k in zip(region_counts.index, region_counts)]
+)
+
+plt.show()
+```
+
+**Observation:** The pie chart would show that Northern Territory (NT) and Western Australia (WA) are the largest contributors to the total area burned, followed by Queensland (QL) and New South Wales (NSW).  South Australia (SA) and Tasmania (TA) have the smallest proportions.
+
+## Fire Characteristics Analysis
+
+### Distribution of Mean Estimated Fire Brightness
+
+```{python}
+#| label: fire-brightness-histogram
+
+plt.figure(figsize=(12, 6))
+plt.hist(x=df['Mean_estimated_fire_brightness'], bins=20)
+plt.xlabel('Mean Estimated Fire Brightness (Kelvin)')
+plt.ylabel('Count')
+plt.title('Histogram of Mean Estimated Fire Brightness')
+plt.show()
+```
+
+### Fire Brightness Distribution by Region
+
+```{python}
+#| label: fire-brightness-by-region-histogram
+
+sns.histplot(data=df, x='Mean_estimated_fire_brightness', hue='Region', multiple='stack')
+plt.xlabel('Mean Estimated Fire Brightness (Kelvin) by Region')
+plt.ylabel('Count')
+plt.title('Distribution of Mean Estimated Fire Brightness by Region')
+plt.show()
+```
+
+### Correlation: Fire Radiative Power vs Confidence Level
+
+```{python}
+#| label: radiative-power-vs-confidence
+
+plt.figure(figsize=(12, 6))
+sns.scatterplot(data=df, x='Mean_confidence', y='Mean_estimated_fire_radiative_power')
+plt.xlabel('Mean Confidence')
+plt.ylabel('Mean Estimated Fire Radiative Power (MW)')
+plt.title('Mean Estimated Fire Radiative Power vs. Mean Confidence')
+plt.show()
+```
+
+**Observation:** This plot suggests a positive correlation between the confidence level of fire detection and the estimated fire radiative power.   
+
+
+## Geographical Visualization
+
+```{python}
+#| label: map-regions
+
+region_data = {
+    'region': ['NSW','QL','SA','TA','VI','WA','NT'],
+    'Lat': [-31.8759835,-22.1646782,-30.5343665,
+            -42.035067,-36.5986096,-25.2303005,-19.491411],
+    'Lon': [147.2869493,144.5844903,135.6301212,
+            146.6366887,144.6780052,121.0187246,132.550964]
+}
+reg = pd.DataFrame(region_data)
+
+# instantiate a feature group 
+aus_reg = folium.map.FeatureGroup()
+
+# Create a Folium map centered on Australia
+Aus_map = folium.Map(location=[-25, 135], zoom_start=4)
+
+# loop through the region and add to feature group
+for lat, lng, lab in zip(reg.Lat, reg.Lon, reg.region):
+    aus_reg.add_child(
+        folium.features.CircleMarker(
+            [lat, lng],
+            popup=lab,
+            radius=5, # define how big you want the circle markers to be
+            color='red',
+            fill=True,
+            fill_color='blue',
+            fill_opacity=0.6
+        )
+    )
+
+# add incidents to map
+Aus_map.add_child(aus_reg)
+```
+
+# Conclusion
+
+This analysis explored various aspects of wildfire activities in Australia, including temporal trends, regional differences, and correlations between fire characteristics. The visualizations provide insights into the patterns of fire occurrences and their intensity across different regions of Australia.
+
+# References
+NASA FIRMS. (n.d.). MODIS/VIIRS Active Fire and Hotspot Data. 
+https://www.earthdata.nasa.gov/learn/find-data/near-real-time/firms/mcd14dl-nrt
+
+# Appendix
+Additional visualizations and detailed statistical analyses are available upon request.
