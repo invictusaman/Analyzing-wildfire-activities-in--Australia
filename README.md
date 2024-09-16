@@ -74,4 +74,4 @@ These insights are valuable for fire management strategies and importance of con
 
 Additional visualizations and detailed statistical analyses are available upon request.
 
-## Visit my Portfolio [Portfolio Link](https://amanbhattarai.com)
+## Visit my Portfolio [Portfolio Link](https://amanbhattarai.com.np)
